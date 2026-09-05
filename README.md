@@ -33,16 +33,6 @@
 
 ---
 
-## 📸 界面预览
-
-> （以下为示意图，实际界面以运行效果为准）
-
-| 计时主界面 | 记录表单 | 趋势图表 |
-|:---:|:---:|:---:|
-| ![计时界面](https://via.placeholder.com/200x120/000000/FFFFFF?text=HH:MM:SS) | ![记录表单](https://via.placeholder.com/200x120/1a1a1a/ffffff?text=记录+表单) | ![图表](https://via.placeholder.com/200x120/1a1a1a/7af?text=折线图) |
-
----
-
 ## 🚀 快速开始
 
 1. **下载或克隆** 本仓库，将 `index.html` 保存到本地。
