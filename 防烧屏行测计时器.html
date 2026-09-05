@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>防烧屏 · 记录计时器</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #000000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', Courier, 'JetBrains Mono', monospace;
+            overflow: hidden;
+            padding: 20px;
+            touch-action: none;
+        }
+
+        #timerDisplay {
+            color: #ffffff;
+            font-size: clamp(3.2rem, 22vw, 12rem);
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-shadow: 0 0 30px rgba(255,255,255,0.05);
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 60vh;
+            line-height: 1.2;
+            transition: none;
+        }
+        #timerDisplay.breathing {
+            animation: breath 2s ease-in-out forwards;
+        }
+        @keyframes breath {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 14px 22px;
+            border-radius: 60px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 40px rgba(0,0,0,0.9);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.3s ease;
+            transform: translateX(-50%) translateY(10px);
+            z-index: 100;
+            max-width: 95%;
+            width: auto;
+        }
+        .controls.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+        @media (max-width: 600px) {
+            .controls {
+                padding: 12px 14px;
+                gap: 8px 10px;
+                border-radius: 40px;
+                bottom: 20px;
+            }
+        }
+        .controls button {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-family: inherit;
+            flex: 0 1 auto;
+            min-width: 60px;
+            white-space: nowrap;
+        }
+        .controls button:active {
+            transform: scale(0.94);
+        }
+        .controls button#startBtn {
+            background: rgba(0, 200, 255, 0.2);
+            border-color: rgba(0, 200, 255, 0.35);
+        }
+        .controls button#resetBtn {
+            background: rgba(255, 80, 80, 0.15);
+            border-color: rgba(255, 80, 80, 0.25);
+        }
+        .controls button#fullscreenBtn {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        .controls button.record-btn {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: rgba(255, 215, 0, 0.25);
+        }
+        .controls button.view-btn {
+            background: rgba(0, 255, 150, 0.12);
+            border-color: rgba(0, 255, 150, 0.2);
+        }
+        .controls button.chart-btn {
+            background: rgba(180, 100, 255, 0.15);
+            border-color: rgba(180, 100, 255, 0.25);
+        }
+        .status-hint {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.6rem;
+            align-self: center;
+            background: rgba(0,0,0,0.3);
+            padding: 4px 12px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.04);
+            text-align: center;
+            flex: 1 1 100%;
+            letter-spacing: 0.3px;
+        }
+
+        :-webkit-full-screen #timerDisplay {
+            min-height: 80vh;
+        }
+        :-moz-full-screen #timerDisplay {
+            min-height: 80vh;
+        }
+        :fullscreen #timerDisplay {
+            min-height: 80vh;
+        }
+
+        /* ---------- 模态框 ---------- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-card {
+            background: #1a1a1a;
+            border-radius: 24px;
+            padding: 28px 30px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+            color: #eee;
+            font-family: 'Courier New', monospace;
+        }
+        .modal-card h2 {
+            font-weight: 400;
+            font-size: 1.4rem;
+            margin-bottom: 18px;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 12px;
+        }
+        .modal-card .field {
+            margin-bottom: 16px;
+        }
+        .modal-card label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 4px;
+        }
+        .modal-card input,
+        .modal-card select,
+        .modal-card textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            outline: none;
+            transition: border 0.2s;
+        }
+        .modal-card input:focus,
+        .modal-card select:focus,
+        .modal-card textarea:focus {
+            border-color: rgba(255,255,255,0.3);
+        }
+        .modal-card textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        select option {
+            background: #222;
+            color: #fff;
+        }
+        .modal-card .btn-row {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .modal-card .btn-row button {
+            padding: 10px 28px;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .modal-card .btn-row button:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .modal-card .btn-row button.primary {
+            background: rgba(0, 200, 255, 0.2);
+            border-color: rgba(0, 200, 255, 0.3);
+        }
+        .modal-card .btn-row button.primary:hover {
+            background: rgba(0, 200, 255, 0.3);
+        }
+        .modal-card .btn-row button.danger {
+            background: rgba(255, 80, 80, 0.15);
+            border-color: rgba(255, 80, 80, 0.2);
+        }
+        .modal-card .btn-row button.danger:hover {
+            background: rgba(255, 80, 80, 0.25);
+        }
+        .modal-card .btn-row button.export-csv {
+            background: rgba(0, 200, 255, 0.15);
+            border-color: rgba(0, 200, 255, 0.2);
+        }
+        .modal-card .btn-row button.export-txt {
+            background: rgba(255, 200, 0, 0.15);
+            border-color: rgba(255, 200, 0, 0.2);
+        }
+        .modal-card .btn-row button.chart-generate {
+            background: rgba(180, 100, 255, 0.2);
+            border-color: rgba(180, 100, 255, 0.3);
+        }
+        .modal-card .btn-row button.chart-generate:hover {
+            background: rgba(180, 100, 255, 0.3);
+        }
+
+        .modal-card .close-btn {
+            float: right;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.3);
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+        .modal-card .close-btn:hover {
+            color: #fff;
+        }
+
+        /* 记录列表 */
+        .record-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 4px;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .record-item:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .record-item .summary {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 12px;
+            font-size: 0.85rem;
+        }
+        .record-item .summary .date {
+            color: rgba(255,255,255,0.6);
+            min-width: 150px;
+        }
+        .record-item .summary .time {
+            color: rgba(255,255,255,0.7);
+        }
+        .record-item .summary .module {
+            color: #7af;
+        }
+        .record-item .summary .accuracy {
+            color: #8f8;
+        }
+        .record-item .summary .edit-btn {
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ccc;
+            padding: 2px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .record-item .summary .edit-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.3);
+            color: #fff;
+        }
+        .record-item .detail {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(255,255,255,0.08);
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+            display: none;
+        }
+        .record-item .detail .label {
+            color: rgba(255,255,255,0.4);
+            margin-right: 6px;
+        }
+        .record-item.expanded .detail {
+            display: block;
+        }
+        .no-records {
+            text-align: center;
+            color: rgba(255,255,255,0.3);
+            padding: 30px 0;
+            font-size: 0.9rem;
+        }
+
+        /* 图表容器 */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .modal-card::-webkit-scrollbar {
+            width: 4px;
+        }
+        .modal-card::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        .modal-card::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div id="timerDisplay"></div>
+    <div class="controls" id="controls">
+        <button id="startBtn">▶ 开始</button>
+        <button id="resetBtn">↺ 重置</button>
+        <button id="fullscreenBtn">⛶ 全屏</button>
+        <button id="recordBtn" class="record-btn">📝 记录</button>
+        <button id="viewBtn" class="view-btn">📋 查看记录</button> <!-- 修改了文本 -->
+        <button id="chartBtn" class="chart-btn">📈 图表</button>
+        <span class="status-hint" id="statusHint">⚡ 自动常亮</span>
+    </div>
+
+    <!-- 记录表单 -->
+    <div class="modal-overlay" id="recordModal">
+        <div class="modal-card">
+            <button class="close-btn" id="closeRecordModal">&times;</button>
+            <h2 id="recordModalTitle">📝 记录当前</h2>
+            <div class="field">
+                <label>📅 日期时间</label>
+                <input type="text" id="recordDate" placeholder="例如：2025-01-01 12:00:00">
+            </div>
+            <div class="field">
+                <label>⏱ 用时</label>
+                <input type="text" id="recordTime" placeholder="例如：00:05:30">
+            </div>
+            <div class="field">
+                <label>📂 模块</label>
+                <select id="recordModule">
+                    <option value="常识">常识</option>
+                    <option value="言语">言语</option>
+                    <option value="数量">数量</option>
+                    <option value="判断">判断</option>
+                    <option value="资料">资料</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>🎯 正确率</label>
+                <input type="text" id="recordAccuracy" placeholder="输入如 8/10 或 80（自动转%）">
+            </div>
+            <div class="field">
+                <label>❌ 错误原因</label>
+                <input type="text" id="recordError" placeholder="简要描述错误原因">
+            </div>
+            <div class="field">
+                <label>📝 备注</label>
+                <textarea id="recordRemark" placeholder="可选备注"></textarea>
+            </div>
+            <div class="btn-row">
+                <button id="cancelRecord">取消</button>
+                <button id="saveRecord" class="primary">💾 保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看记录 -->
+    <div class="modal-overlay" id="viewModal">
+        <div class="modal-card">
+            <button class="close-btn" id="closeViewModal">&times;</button>
+            <h2>📋 历史记录</h2>
+            <div id="recordList"></div>
+            <div class="btn-row" style="justify-content:space-between; margin-top:12px;">
+                <button id="clearRecords" class="danger">🗑 清空全部</button>
+                <div style="display:flex; gap:8px;">
+                    <button id="exportCsv" class="export-csv">📊 导出 CSV</button>
+                    <button id="exportTxt" class="export-txt">📄 导出 TXT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表模态框 -->
+    <div class="modal-overlay" id="chartModal">
+        <div class="modal-card" style="max-width: 800px;">
+            <button class="close-btn" id="closeChartModal">&times;</button>
+            <h2>📈 模块正确率趋势</h2>
+            <div class="field">
+                <label>选择模块</label>
+                <select id="chartModule">
+                    <option value="常识">常识</option>
+                    <option value="言语">言语</option>
+                    <option value="数量">数量</option>
+                    <option value="判断">判断</option>
+                    <option value="资料">资料</option>
+                </select>
+            </div>
+            <!-- 移除“生成图表”按钮 -->
+            <div class="chart-container" id="chartContainer">
+                <canvas id="accuracyChart"></canvas>
+            </div>
+            <div id="chartNoData" style="display:none; text-align:center; padding:20px; color:rgba(255,255,255,0.5);">
+                该模块暂无记录
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---------- DOM ----------
+            const timerDisplay = document.getElementById('timerDisplay');
+            const startBtn = document.getElementById('startBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const statusHint = document.getElementById('statusHint');
+            const controls = document.getElementById('controls');
+
+            const recordModal = document.getElementById('recordModal');
+            const recordModalTitle = document.getElementById('recordModalTitle');
+            const viewModal = document.getElementById('viewModal');
+            const chartModal = document.getElementById('chartModal');
+            const recordDate = document.getElementById('recordDate');
+            const recordTime = document.getElementById('recordTime');
+            const recordModule = document.getElementById('recordModule');
+            const recordAccuracy = document.getElementById('recordAccuracy');
+            const recordError = document.getElementById('recordError');
+            const recordRemark = document.getElementById('recordRemark');
+            const saveRecordBtn = document.getElementById('saveRecord');
+            const cancelRecordBtn = document.getElementById('cancelRecord');
+            const closeRecordBtn = document.getElementById('closeRecordModal');
+            const closeViewBtn = document.getElementById('closeViewModal');
+            const closeChartBtn = document.getElementById('closeChartModal');
+            const recordListDiv = document.getElementById('recordList');
+            const clearRecordsBtn = document.getElementById('clearRecords');
+            const exportCsvBtn = document.getElementById('exportCsv');
+            const exportTxtBtn = document.getElementById('exportTxt');
+            const chartModuleSelect = document.getElementById('chartModule');
+            const chartCanvas = document.getElementById('accuracyChart');
+            const chartNoData = document.getElementById('chartNoData');
+
+            let myChart = null;
+
+            // ---------- 计时 ----------
+            let seconds = 0;
+            let timerInterval = null;
+            let isRunning = false;
+
+            // ---------- Wake Lock ----------
+            let wakeLock = null;
+            let wakeLockSupported = 'wakeLock' in navigator;
+
+            // ---------- 控制栏自动隐藏 ----------
+            let hideTimeout = null;
+            function showControls() {
+                controls.classList.add('visible');
+                if (hideTimeout) clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    controls.classList.remove('visible');
+                }, 3000);
+            }
+            document.addEventListener('mousemove', showControls);
+            document.addEventListener('touchstart', showControls);
+            setTimeout(showControls, 100);
+
+            // ---------- 计时器显示 ----------
+            function formatTime(totalSec) {
+                const h = Math.floor(totalSec / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = totalSec % 60;
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+            function updateDisplay() {
+                timerDisplay.textContent = formatTime(seconds);
+            }
+
+            // ---------- 整体呼吸 ----------
+            function triggerBreath() {
+                timerDisplay.classList.remove('breathing');
+                void timerDisplay.offsetWidth;
+                timerDisplay.classList.add('breathing');
+            }
+            setInterval(triggerBreath, 15000);
+            setTimeout(triggerBreath, 500);
+
+            // ---------- 屏幕常亮 ----------
+            async function requestWakeLock() {
+                if (!wakeLockSupported) {
+                    statusHint.textContent = '⚠️ 不支持常亮';
+                    return false;
+                }
+                if (wakeLock) return true;
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        wakeLock = null;
+                        statusHint.textContent = '🔓 常亮已释放';
+                    });
+                    statusHint.textContent = '✅ 常亮已激活';
+                    return true;
+                } catch (err) {
+                    console.warn('Wake Lock 请求失败:', err);
+                    statusHint.textContent = '❌ 常亮被拒 (需HTTPS)';
+                    return false;
+                }
+            }
+            async function releaseWakeLock() {
+                if (wakeLock) {
+                    try { await wakeLock.release(); } catch (e) {}
+                    wakeLock = null;
+                }
+                statusHint.textContent = '🔓 常亮已释放';
+            }
+
+            // ---------- 计时控制 ----------
+            async function toggleTimer() {
+                if (isRunning) {
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    isRunning = false;
+                    startBtn.textContent = '▶ 继续';
+                    statusHint.textContent = '⏸️ 暂停 · 常亮保持';
+                    return;
+                }
+                if (!wakeLock) {
+                    await requestWakeLock();
+                }
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    updateDisplay();
+                }, 1000);
+                isRunning = true;
+                startBtn.textContent = '⏸ 暂停';
+                statusHint.textContent = '▶ 计时中 · 常亮启用';
+            }
+
+            async function resetTimer() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                isRunning = false;
+                seconds = 0;
+                updateDisplay();
+                startBtn.textContent = '▶ 开始';
+                await releaseWakeLock();
+                statusHint.textContent = '↺ 已重置 · 常亮释放';
+                showControls();
+            }
+
+            // ---------- 全屏 ----------
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        statusHint.textContent = '⚠️ 全屏被拒';
+                    });
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+            document.addEventListener('fullscreenchange', () => {
+                fullscreenBtn.textContent = document.fullscreenElement ? '⛶ 退出' : '⛶ 全屏';
+            });
+
+            // ---------- 可见性 ----------
+            async function handleVisibilityChange() {
+                if (document.visibilityState === 'visible' && isRunning && wakeLockSupported) {
+                    if (!wakeLock) {
+                        await requestWakeLock();
+                    }
+                }
+            }
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
+            // ---------- 记录 ----------
+            const STORAGE_KEY = 'timerRecords';
+
+            function getRecords() {
+                try {
+                    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+                } catch { return []; }
+            }
+            function saveRecords(records) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            }
+
+            function formatTimeUsed(sec) {
+                const h = Math.floor(sec / 3600);
+                const m = Math.floor((sec % 3600) / 60);
+                const s = sec % 60;
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+
+            function autoCalculateAccuracy() {
+                let val = recordAccuracy.value.trim();
+                if (!val) return;
+                if (val.includes('/')) {
+                    const parts = val.split('/');
+                    if (parts.length === 2) {
+                        const num = parseFloat(parts[0]);
+                        const den = parseFloat(parts[1]);
+                        if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                            const pct = (num / den * 100);
+                            recordAccuracy.value = pct.toFixed(1) + '%';
+                            return;
+                        }
+                    }
+                }
+                if (!val.includes('%')) {
+                    const num = parseFloat(val);
+                    if (!isNaN(num)) {
+                        recordAccuracy.value = num + '%';
+                    }
+                }
+            }
+
+            // ---------- 编辑状态 ----------
+            let editingTimestamp = null;
+
+            function openRecordModal(recordData = null) {
+                if (recordData) {
+                    editingTimestamp = recordData.timestamp;
+                    recordModalTitle.textContent = '✏️ 编辑记录';
+                    recordDate.value = recordData.date || '';
+                    recordTime.value = recordData.timeUsed || '';
+                    recordModule.value = recordData.module || '常识';
+                    recordAccuracy.value = recordData.accuracy || '';
+                    recordError.value = recordData.errorReason || '';
+                    recordRemark.value = recordData.remark || '';
+                } else {
+                    editingTimestamp = null;
+                    recordModalTitle.textContent = '📝 记录当前';
+                    const now = new Date();
+                    recordDate.value = now.toLocaleString('zh-CN', { hour12: false });
+                    recordTime.value = formatTimeUsed(seconds);
+                    recordAccuracy.value = '';
+                    recordError.value = '';
+                    recordRemark.value = '';
+                }
+                recordModal.classList.add('active');
+                showControls();
+            }
+
+            function closeRecordModal() {
+                recordModal.classList.remove('active');
+                editingTimestamp = null;
+            }
+
+            function saveRecord() {
+                const date = recordDate.value.trim() || '未知日期';
+                const timeUsed = recordTime.value.trim() || '00:00:00';
+                const module = recordModule.value;
+                let accuracy = recordAccuracy.value.trim();
+                if (!accuracy) accuracy = '未填写';
+                const errorReason = recordError.value.trim() || '无';
+                const remark = recordRemark.value.trim() || '无';
+
+                let records = getRecords();
+
+                if (editingTimestamp !== null) {
+                    const index = records.findIndex(r => r.timestamp === editingTimestamp);
+                    if (index !== -1) {
+                        records[index] = {
+                            ...records[index],
+                            date,
+                            timeUsed,
+                            module,
+                            accuracy,
+                            errorReason,
+                            remark
+                        };
+                        saveRecords(records);
+                        statusHint.textContent = '✅ 记录已更新';
+                    } else {
+                        alert('记录不存在，可能已被删除。');
+                        closeRecordModal();
+                        return;
+                    }
+                } else {
+                    records.push({
+                        date,
+                        timeUsed,
+                        module,
+                        accuracy,
+                        errorReason,
+                        remark,
+                        timestamp: Date.now()
+                    });
+                    saveRecords(records);
+                    statusHint.textContent = '✅ 记录已保存';
+                }
+
+                closeRecordModal();
+                if (viewModal.classList.contains('active')) {
+                    renderRecords();
+                }
+
+                setTimeout(() => {
+                    if (isRunning) statusHint.textContent = '▶ 计时中 · 常亮启用';
+                    else statusHint.textContent = '⏸️ 暂停 · 常亮保持';
+                }, 2000);
+            }
+
+            // ---------- 查看 ----------
+            function openViewModal() {
+                renderRecords();
+                viewModal.classList.add('active');
+                showControls();
+            }
+            function closeViewModal() {
+                viewModal.classList.remove('active');
+            }
+
+            function renderRecords() {
+                const records = getRecords();
+                if (records.length === 0) {
+                    recordListDiv.innerHTML = `<div class="no-records">📭 暂无记录</div>`;
+                    return;
+                }
+                const sorted = [...records].reverse();
+                let html = '';
+                sorted.forEach((rec, index) => {
+                    const realIndex = records.length - 1 - index;
+                    html += `
+                        <div class="record-item" data-index="${realIndex}">
+                            <div class="summary">
+                                <span class="date">${rec.date}</span>
+                                <span class="time">⏱ ${rec.timeUsed}</span>
+                                <span class="module">${rec.module}</span>
+                                <span class="accuracy">${rec.accuracy}</span>
+                                <button class="edit-btn" data-timestamp="${rec.timestamp}">✏️ 编辑</button>
+                            </div>
+                            <div class="detail">
+                                <div><span class="label">❌ 错误原因：</span>${rec.errorReason}</div>
+                                <div><span class="label">📝 备注：</span>${rec.remark}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                recordListDiv.innerHTML = html;
+
+                document.querySelectorAll('.record-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('edit-btn')) return;
+                        this.classList.toggle('expanded');
+                    });
+                });
+
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const timestamp = parseInt(this.dataset.timestamp);
+                        const records = getRecords();
+                        const record = records.find(r => r.timestamp === timestamp);
+                        if (record) {
+                            closeViewModal();
+                            openRecordModal(record);
+                        } else {
+                            alert('记录不存在');
+                        }
+                    });
+                });
+            }
+
+            // ---------- 导出 ----------
+            function escapeCsvField(field) {
+                if (field === null || field === undefined) return '""';
+                const str = String(field);
+                if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+                    return '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            }
+
+            function exportRecords(format) {
+                const records = getRecords();
+                if (records.length === 0) {
+                    alert('暂无记录可导出');
+                    return;
+                }
+                const headers = ['日期', '用时', '模块', '正确率', '错误原因', '备注'];
+                const rows = records.map(r => [
+                    r.date,
+                    r.timeUsed,
+                    r.module,
+                    r.accuracy,
+                    r.errorReason,
+                    r.remark
+                ]);
+                const headerLine = headers.map(escapeCsvField).join(',');
+                const dataLines = rows.map(row => row.map(escapeCsvField).join(','));
+                const content = [headerLine, ...dataLines].join('\n');
+
+                const mimeType = format === 'csv' ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;';
+                const blob = new Blob(['\uFEFF' + content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `records_${new Date().toISOString().slice(0,10)}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                statusHint.textContent = `📤 已导出 ${format.toUpperCase()}`;
+                setTimeout(() => {
+                    if (isRunning) statusHint.textContent = '▶ 计时中 · 常亮启用';
+                    else statusHint.textContent = '⏸️ 暂停 · 常亮保持';
+                }, 2000);
+            }
+
+            function clearAllRecords() {
+                if (confirm('确定要删除所有记录吗？')) {
+                    saveRecords([]);
+                    renderRecords();
+                    statusHint.textContent = '🗑 已清空';
+                    setTimeout(() => {
+                        if (isRunning) statusHint.textContent = '▶ 计时中 · 常亮启用';
+                        else statusHint.textContent = '⏸️ 暂停 · 常亮保持';
+                    }, 2000);
+                }
+            }
+
+            // ---------- 图表功能（横轴为次序，自动生成） ----------
+            function openChartModal() {
+                chartModal.classList.add('active');
+                showControls();
+                generateChart();
+            }
+            function closeChartModal() {
+                chartModal.classList.remove('active');
+                if (myChart) {
+                    myChart.destroy();
+                    myChart = null;
+                }
+            }
+
+            // 解析正确率
+            function parseAccuracy(accStr) {
+                if (!accStr) return 0;
+                const s = String(accStr).trim();
+                let num = parseFloat(s.replace('%', ''));
+                if (isNaN(num)) return 0;
+                return num;
+            }
+
+            function generateChart() {
+                const module = chartModuleSelect.value;
+                const records = getRecords();
+                const filtered = records.filter(r => r.module === module).sort((a, b) => a.timestamp - b.timestamp);
+                if (filtered.length === 0) {
+                    chartNoData.style.display = 'block';
+                    if (myChart) {
+                        myChart.destroy();
+                        myChart = null;
+                    }
+                    return;
+                }
+                chartNoData.style.display = 'none';
+
+                const labels = filtered.map((_, index) => `第${index+1}次`);
+                const data = filtered.map(r => parseAccuracy(r.accuracy));
+                const dateTimes = filtered.map(r => r.date);
+
+                if (myChart) {
+                    myChart.destroy();
+                    myChart = null;
+                }
+
+                const ctx = chartCanvas.getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `${module} 正确率`,
+                            data: data,
+                            borderColor: '#7af',
+                            backgroundColor: 'rgba(100, 180, 255, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#7af',
+                            pointBorderColor: '#fff',
+                            pointRadius: 3,
+                            tension: 0.2,
+                            fill: true,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#eee',
+                                    font: { family: 'Courier New', size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `正确率: ${context.parsed.y}%`;
+                                    },
+                                    afterLabel: function(context) {
+                                        const index = context.dataIndex;
+                                        const date = dateTimes[index] || '';
+                                        return `📅 ${date}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#aaa',
+                                    maxTicksLimit: 20,
+                                    font: { size: 10 }
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.05)'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: '#aaa',
+                                    callback: function(value) { return value + '%'; },
+                                    font: { size: 10 }
+                                },
+                                grid: {
+                                    color: 'rgba(255,255,255,0.05)'
+                                },
+                                min: 0,
+                                max: 100
+                            }
+                        },
+                        elements: {
+                            line: {
+                                borderWidth: 2
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ---------- 事件绑定 ----------
+            startBtn.addEventListener('click', toggleTimer);
+            resetBtn.addEventListener('click', resetTimer);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            document.getElementById('recordBtn').addEventListener('click', () => openRecordModal(null));
+            document.getElementById('viewBtn').addEventListener('click', openViewModal);
+            document.getElementById('chartBtn').addEventListener('click', openChartModal);
+
+            saveRecordBtn.addEventListener('click', saveRecord);
+            cancelRecordBtn.addEventListener('click', closeRecordModal);
+            closeRecordBtn.addEventListener('click', closeRecordModal);
+            closeViewBtn.addEventListener('click', closeViewModal);
+            closeChartBtn.addEventListener('click', closeChartModal);
+            clearRecordsBtn.addEventListener('click', clearAllRecords);
+            exportCsvBtn.addEventListener('click', () => exportRecords('csv'));
+            exportTxtBtn.addEventListener('click', () => exportRecords('txt'));
+
+            recordAccuracy.addEventListener('blur', autoCalculateAccuracy);
+
+            // 模块切换时自动生成图表
+            chartModuleSelect.addEventListener('change', generateChart);
+
+            // 点击遮罩关闭
+            recordModal.addEventListener('click', function(e) {
+                if (e.target === this) closeRecordModal();
+            });
+            viewModal.addEventListener('click', function(e) {
+                if (e.target === this) closeViewModal();
+            });
+            chartModal.addEventListener('click', function(e) {
+                if (e.target === this) closeChartModal();
+            });
+
+            window.addEventListener('beforeunload', () => {
+                if (wakeLock) wakeLock.release().catch(() => {});
+                if (myChart) myChart.destroy();
+            });
+
+            // ---------- 启动 ----------
+            updateDisplay();
+            statusHint.textContent = wakeLockSupported ? '⚡ 自动常亮' : '⚠️ 仅计时 (无常亮)';
+            console.log('✅ 防烧屏计时器 (图表自动生成) 已启动');
+        })();
+    </script>
+</body>
+</html>
