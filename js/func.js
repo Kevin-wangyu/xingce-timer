@@ -777,9 +777,6 @@
 
     // 打开设置页
     function openSettings() {
-        const s = getAppSettings();
-        if (s.gistToken) gistTokenInput.value = s.gistToken;
-        if (s.gistId) gistIdInput.value = s.gistId;
         // 显示上次同步记录
         const s2 = getAppSettings();
         if (s2.lastSync) {
@@ -868,6 +865,7 @@
             saveAppSettings(s2);
 
             setGistStatus(`✅ 上次同步：${new Date().toLocaleString('zh-CN', { hour12: false })}`, 'ok');
+            console.log('[Sync] 同步成功');
         } catch (e) {
             setGistStatus(`❌ 同步失败：${e.message}`, 'err');
         }
