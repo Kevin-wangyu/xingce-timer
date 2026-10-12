@@ -421,7 +421,7 @@ html {
 /* ---------- 横屏手机 ---------- */
 @media (max-height: 500px) and (orientation: landscape) {
     #timerDisplay {
-        font-size: clamp(2rem, 10vw, 4rem);
+        font-size: clamp(7rem, 10vw, 4rem);
         min-height: auto;
         margin: 10px 0;
     }
