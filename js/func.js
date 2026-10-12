@@ -1033,6 +1033,18 @@
     document.getElementById('syncGistBtn').addEventListener('click', syncToGist);
     settingsModal.addEventListener('click', e => { if (e.target === settingsModal) closeSettings(); });
 
+    // Token / Gist ID 一改动就保存到 localStorage
+    gistTokenInput.addEventListener('input', () => {
+        const s = getAppSettings();
+        s.gistToken = gistTokenInput.value.trim();
+        saveAppSettings(s);
+    });
+    gistIdInput && gistIdInput.addEventListener('input', () => {
+        const s = getAppSettings();
+        s.gistId = gistIdInput.value.trim();
+        saveAppSettings(s);
+    });
+
     // 点击遮罩关闭
     moduleMenuModal.addEventListener('click', e => { if (e.target === moduleMenuModal) closeModuleMenu(); });
     moduleRecordModal.addEventListener('click', e => { if (e.target === moduleRecordModal) closeModuleRecordModal(); });
@@ -1052,6 +1064,12 @@
 
     // ---------- 启动 ----------
     updateDisplay();
+    // 页面加载时预填 Gist 设置
+    (function preloadGistSettings() {
+        const s = getAppSettings();
+        if (s.gistToken) gistTokenInput.value = s.gistToken;
+        if (s.gistId) gistIdInput && (gistIdInput.value = s.gistId);
+    })();
     statusHint.textContent = wakeLockSupported ? '⚡ 自动常亮' : '⚠️ 仅计时 (无常亮)';
     console.log('✅ 防烧屏计时器 (模块+考试+图表) 已启动');
 })();
