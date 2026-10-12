@@ -504,36 +504,29 @@ html {
     :fullscreen #startBtn.paused::before { content: '⏸'; }
 }
 
-/* ---------- 小屏全屏（< 420px）进一步压缩 ---------- */
-@media (max-width: 420px) {
-    :fullscreen #timerDisplay,
-    :-webkit-full-screen #timerDisplay {
-        font-size: min(11.5vw, 9vh);
-    }
-    :fullscreen .controls button,
-    :-webkit-full-screen .controls button {
-        padding: 7px 9px;
-        min-width: 34px;
-    }
-    :fullscreen .controls button::before,
-    :-webkit-full-screen .controls button::before {
-        font-size: 1rem;
+/* ---------- 移动端统一字号（宽高双约束，全屏/非全屏通用）---------- */
+@media (max-width: 700px) {
+    #timerDisplay {
+        font-size: max(2.5rem, min(16vw, 12vh));
+        letter-spacing: 0.5px;
+        min-height: 0;
+        padding: 0 8px;
+        overflow: hidden;
     }
 }
-
-/* ---------- 横屏全屏（低高度）---------- */
-@media (max-height: 500px) and (orientation: landscape) {
-    :fullscreen #timerDisplay,
-    body.is-fullscreen #timerDisplay,
-    :-webkit-full-screen #timerDisplay {
-        font-size: min(13vw, 10vh);
-        min-height: 50vh;
+@media (max-width: 480px) {
+    #timerDisplay {
+        font-size: min(15.5vw, 11.5vh);
     }
-    :fullscreen .controls,
-    body.is-fullscreen .controls,
-    :-webkit-full-screen .controls {
-        padding: 5px 8px;
-        gap: 4px;
-        bottom: calc(6px + env(safe-area-inset-bottom));
+}
+@media (max-width: 420px) {
+    #timerDisplay {
+        font-size: min(15vw, 11vh);
+    }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+    #timerDisplay {
+        font-size: min(13vw, 14vh);
+        min-height: 0;
     }
 }
