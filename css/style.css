@@ -438,3 +438,102 @@ html {
     .modal-card { max-height: 95vh; }
     .chart-container { height: 180px; }
 }
+
+/* ==================== 移动端全屏专项优化 ==================== */
+@media (max-width: 700px) {
+    /* 1) 数字大小同时受宽高限制，防止溢出 */
+    :fullscreen #timerDisplay,
+    :-webkit-full-screen #timerDisplay,
+    :-moz-full-screen #timerDisplay {
+        font-size: min(13vw, 10vh);
+        min-height: 55vh;
+        letter-spacing: 0.5px;
+        padding: 0 6px;
+        overflow: hidden;
+    }
+
+    /* 2) 控制栏更紧凑 */
+    :fullscreen .controls,
+    :-webkit-full-screen .controls {
+        padding: 6px 8px;
+        gap: 4px;
+        border-radius: 20px;
+        max-width: 98vw;
+        bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    :fullscreen .controls button,
+    :-webkit-full-screen .controls button {
+        padding: 7px 9px;
+        font-size: 0.65rem;
+        min-width: 0;
+        flex: 0 1 auto;
+        letter-spacing: 0;
+    }
+
+    /* 3) 全屏时隐藏状态提示（省一行） */
+    :fullscreen .status-hint,
+    :-webkit-full-screen .status-hint {
+        display: none;
+    }
+
+    /* 4) 全屏时隐藏"全屏"按钮（已在全屏，无需再点） */
+    :fullscreen #fullscreenBtn,
+    :-webkit-full-screen #fullscreenBtn {
+        display: none;
+    }
+
+    /* 5) 按钮只显示图标（隐藏中文）—— 极致紧凑 */
+    :fullscreen .controls button,
+    :-webkit-full-screen .controls button {
+        font-size: 0;      /* 隐藏文字 */
+        padding: 8px 10px;
+        min-width: 38px;
+    }
+    :fullscreen .controls button::before,
+    :-webkit-full-screen .controls button::before {
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+    :fullscreen #startBtn::before { content: '▶'; }
+    :fullscreen #resetBtn::before { content: '↺'; }
+    :fullscreen #moduleBtn::before { content: '📚'; }
+    :fullscreen #examBtn::before  { content: '🎓'; }
+    :fullscreen #settingsBtn::before { content: '⚙️'; }
+
+    /* 暂停状态时按钮图标切换成暂停符号 */
+    :fullscreen #startBtn.paused::before { content: '⏸'; }
+}
+
+/* ---------- 小屏全屏（< 420px）进一步压缩 ---------- */
+@media (max-width: 420px) {
+    :fullscreen #timerDisplay,
+    :-webkit-full-screen #timerDisplay {
+        font-size: min(11.5vw, 9vh);
+    }
+    :fullscreen .controls button,
+    :-webkit-full-screen .controls button {
+        padding: 7px 9px;
+        min-width: 34px;
+    }
+    :fullscreen .controls button::before,
+    :-webkit-full-screen .controls button::before {
+        font-size: 1rem;
+    }
+}
+
+/* ---------- 横屏全屏（低高度）---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+    :fullscreen #timerDisplay,
+    body.is-fullscreen #timerDisplay,
+    :-webkit-full-screen #timerDisplay {
+        font-size: min(13vw, 10vh);
+        min-height: 50vh;
+    }
+    :fullscreen .controls,
+    body.is-fullscreen .controls,
+    :-webkit-full-screen .controls {
+        padding: 5px 8px;
+        gap: 4px;
+        bottom: calc(6px + env(safe-area-inset-bottom));
+    }
+}

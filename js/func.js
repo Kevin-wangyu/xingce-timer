@@ -145,6 +145,7 @@
             if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
             isRunning = false;
             startBtn.textContent = '▶ 继续';
+            startBtn.classList.add('paused');      // ⬅️ 新增
             await releaseWakeLock();
             statusHint.textContent = '⏸️ 已暂停 · 常亮已释放';
             return;
@@ -154,6 +155,7 @@
         timerInterval = setInterval(() => { seconds++; updateDisplay(); }, 1000);
         isRunning = true;
         startBtn.textContent = '⏸ 暂停';
+        startBtn.classList.remove('paused');       // ⬅️ 新增
         statusHint.textContent = '▶ 计时中 · 常亮启用';
     }
     async function resetTimer() {
@@ -162,22 +164,33 @@
         seconds = 0;
         updateDisplay();
         startBtn.textContent = '▶ 开始';
+        startBtn.classList.remove('paused');
         await releaseWakeLock();
         statusHint.textContent = '↺ 已重置 · 常亮已释放';
         showControls();
     }
     function toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {
-                statusHint.textContent = '⚠️ 全屏被拒';
-            });
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                req.call(el).then(() => document.body.classList.add('is-fullscreen')).catch(() => {
+                    statusHint.textContent = '⚠️ 全屏被拒';
+                });
+            }
         } else {
-            document.exitFullscreen().catch(() => {});
+            const exit = document.exitFullscreen || document.webkitExitFullscreen;
+            if (exit) {
+                exit.call(document).then(() => document.body.classList.remove('is-fullscreen'));
+            }
         }
     }
     document.addEventListener('fullscreenchange', () => {
-        fullscreenBtn.textContent = document.fullscreenElement ? '⛶ 退出' : '⛶ 全屏';
+        const isFs = !!document.fullscreenElement;
+        document.body.classList.toggle('is-fullscreen', isFs);
+        fullscreenBtn.textContent = isFs ? '⛶ 退出' : '⛶ 全屏';
     });
+
     document.addEventListener('visibilitychange', async () => {
         if (document.visibilityState === 'visible' && isRunning && wakeLockSupported && !wakeLock) {
             await requestWakeLock();
