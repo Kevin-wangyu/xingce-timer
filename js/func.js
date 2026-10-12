@@ -777,10 +777,13 @@
 
     // 打开设置页
     function openSettings() {
-        // 显示上次同步记录
-        const s2 = getAppSettings();
-        if (s2.lastSync) {
-            setGistStatus(`✅ 上次同步：${new Date(s2.lastSync).toLocaleString('zh-CN', { hour12: false })}`, 'ok');
+        const s = getAppSettings();
+        if (gistTokenInput && s.gistToken) gistTokenInput.value = s.gistToken;
+        if (gistIdInput && s.gistId) gistIdInput.value = s.gistId;
+
+        if (s.lastSync) {
+            const t = new Date(s.lastSync).toLocaleString('zh-CN', { hour12: false });
+            setGistStatus(`✅ 上次同步：${t}`, 'ok');
         } else {
             setGistStatus('未同步');
         }
@@ -819,6 +822,33 @@
         setTimeout(() => location.reload(), 900);
     }
 
+    // 查找用户已有的备份 Gist
+    async function findExistingBackupGist(token) {
+        try {
+            const res = await fetch('https://api.github.com/gists?per_page=100', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json'
+                }
+            });
+            if (!res.ok) return null;
+            const gists = await res.json();
+            // 优先匹配描述 + 文件名
+            let target = gists.find(g =>
+                g.description === '防烧屏计时器 · 数据备份' &&
+                g.files && g.files['timer_data.json']
+            );
+            // 其次只匹配文件名
+            if (!target) {
+                target = gists.find(g => g.files && g.files['timer_data.json']);
+            }
+            return target ? target.id : null;
+        } catch (e) {
+            console.warn('查找 Gist 失败:', e);
+            return null;
+        }
+    }
+
     // 智能双向同步
     async function syncToGist() {
         const token = gistTokenInput.value.trim();
@@ -828,7 +858,19 @@
         s.gistToken = token;
         saveAppSettings(s);
 
-        const gistId = s.gistId || '';
+        let gistId = (gistIdInput.value.trim()) || s.gistId || '';
+
+        // 没有 ID → 自动查找已有备份
+        if (!gistId) {
+            setGistStatus('⏳ 查找已有备份...', 'loading');
+            gistId = await findExistingBackupGist(token);
+            if (gistId) {
+                gistIdInput.value = gistId;
+                s.gistId = gistId;
+                saveAppSettings(s);
+            }
+        }
+
         const localData = collectAllData();
         const localCount = localData.moduleRecords.length + localData.examRecords.length;
 
@@ -1022,6 +1064,12 @@
                 if (examModulesChart) examModulesChart.resize();
             }
         });
+    });
+
+    gistIdInput.addEventListener('input', () => {
+        const s = getAppSettings();
+        s.gistId = gistIdInput.value.trim();
+        saveAppSettings(s);
     });
 
     // 设置页

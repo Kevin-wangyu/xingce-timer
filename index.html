@@ -229,6 +229,10 @@
             <div class="settings-section">
                 <h3>☁️ GitHub Gist 同步</h3>
                 <div class="field">
+                    <label>Gist ID（留空自动查找或创建）</label>
+                    <input type="text" id="gistId" placeholder="留空自动管理">
+                </div>
+                <div class="field">
                     <label>GitHub Token</label>
                     <input type="password" id="gistToken" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
                 </div>
@@ -238,7 +242,7 @@
                 <div id="gistStatus" class="gist-status">未同步</div>
                 <div class="gist-hint">
                     Token 需要 <b>gist</b> 权限，<a href="https://github.com/settings/tokens/new?scopes=gist&description=TimerBackup" target="_blank">点击此处创建</a>。<br>
-                    首次同步会自动创建私密 Gist，此后每次点击都覆盖更新。
+                    多个设备使用相同 Token 会自动绑定同一个 Gist。
                 </div>
             </div>
         </div>
