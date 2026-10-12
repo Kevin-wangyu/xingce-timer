@@ -504,29 +504,40 @@ html {
     :fullscreen #startBtn.paused::before { content: '⏸'; }
 }
 
-/* ---------- 移动端统一字号（宽高双约束，全屏/非全屏通用）---------- */
-@media (max-width: 800px) {
+/* ---------- 移动端时间最大化 ---------- */
+@media (max-width: 700px) {
     #timerDisplay {
-        font-size: min(40vw, 30vh);
-        letter-spacing: 0.5px;
+        /* 19vw 是 8 个字符能撑满屏幕宽度的极限 */
+        /* 15vh 是高度方向的兜底，防止横屏太高溢出 */
+        font-size: min(19vw, 15vh);
+        letter-spacing: -0.5px;      /* 微收字距，挤出空间 */
+        line-height: 1;              /* 收紧行高，视觉更饱满 */
+        padding: 0;
+        margin: 0;
         min-height: 0;
-        padding: 0 8px;
+        width: 100%;
         overflow: hidden;
     }
 }
-@media (max-width: 800px) {
+
+@media (max-width: 420px) {
     #timerDisplay {
-        font-size: min(40vw, 30vh);
+        font-size: min(19.5vw, 15vh);
+        letter-spacing: -1px;         /* 小屏再挤一点 */
     }
 }
-@media (max-width: 800px) {
+
+@media (max-height: 500px) and (orientation: landscape) {
     #timerDisplay {
-        font-size: min(40vw, 30vh);
+        font-size: min(13vw, 22vh);   /* 横屏高度小，用 vh 主导 */
+        letter-spacing: -0.5px;
     }
 }
-@media (max-height: 1000px) and (orientation: landscape) {
-    #timerDisplay {
-        font-size: min(40vw, 30vh);
-        min-height: 0;
+
+@media (max-width: 700px) {
+    :fullscreen #timerDisplay,
+    :-webkit-full-screen #timerDisplay {
+        font-size: min(20vw, 18vh);
+        letter-spacing: -1px;
     }
 }

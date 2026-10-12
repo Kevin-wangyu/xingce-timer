@@ -866,9 +866,13 @@
     }
 
     // 智能双向同步
-    async function syncToGist() {
+    async function syncToGist(options = {}) {
+        const silent = options.silent === true;
         const token = gistTokenInput.value.trim();
-        if (!token) { setGistStatus('❌ 请填写 GitHub Token', 'err'); return; }
+        if (!token) {
+            if (!silent) setGistStatus('❌ 请填写 GitHub Token', 'err');
+            return;
+        }
 
         const s = getAppSettings();
         s.gistToken = token;
@@ -876,7 +880,6 @@
 
         let gistId = (gistIdInput.value.trim()) || s.gistId || '';
 
-        // 没有 ID → 自动查找已有备份
         if (!gistId) {
             setGistStatus('⏳ 查找已有备份...', 'loading');
             gistId = await findExistingBackupGist(token);
@@ -891,7 +894,7 @@
         const localCount = localData.moduleRecords.length + localData.examRecords.length;
 
         try {
-            // ========== 1. 先拉取远程数据 ==========
+            // 拉取远程
             let remoteData = null;
             if (gistId) {
                 setGistStatus('⏳ 读取远程数据...', 'loading');
@@ -919,11 +922,26 @@
                 ? (remoteData.moduleRecords?.length || 0) + (remoteData.examRecords?.length || 0)
                 : 0;
 
-            // ========== 2. 智能决策 ==========
-            let finalData;
+            // ============ 静默模式：只拉取，不合并不上传 ============
+            if (silent) {
+                if (localCount === 0 && remoteCount > 0) {
+                    // 本地空 → 自动下载
+                    if (Array.isArray(remoteData.moduleRecords)) saveModuleRecords(remoteData.moduleRecords);
+                    if (Array.isArray(remoteData.examRecords)) saveExamRecords(remoteData.examRecords);
+                    const s3 = getAppSettings();
+                    s3.lastSync = Date.now();
+                    saveAppSettings(s3);
+                    setTimeout(() => location.reload(), 500);
+                } else if (localCount > 0 && remoteCount > localCount) {
+                    // 远程比本地多 → 静默提示用户手动同步
+                    setGistStatus(`ℹ️ 远程有 ${remoteCount} 条，本地 ${localCount} 条，建议手动同步`, 'ok');
+                }
+                return;
+            }
 
+            // ============ 手动模式：原有逻辑 ============
+            let finalData;
             if (localCount === 0 && remoteCount > 0) {
-                // 本地空、远程有 → 直接下载
                 if (!confirm(`本地无数据，远程有 ${remoteCount} 条。\n\n是否从远程下载到本地？`)) {
                     setGistStatus('已取消');
                     return;
@@ -936,16 +954,11 @@
                 setGistStatus(`✅ 已下载 ${remoteCount} 条，即将刷新...`, 'ok');
                 setTimeout(() => location.reload(), 900);
                 return;
-
             } else if (localCount > 0 && remoteCount > 0) {
-                // 两边都有 → 合并去重
-                console.log(`本地 ${localCount} 条，远程 ${remoteCount} 条。`)
                 finalData = mergeData(localData, remoteData);
-                // 更新本地为合并后
                 saveModuleRecords(finalData.moduleRecords);
                 saveExamRecords(finalData.examRecords);
             } else {
-                // 本地有、远程空 / 两边都空 → 直接上传
                 finalData = localData;
             }
 
@@ -1125,6 +1138,14 @@
         if (s.gistToken) gistTokenInput.value = s.gistToken;
         if (s.gistId) gistIdInput && (gistIdInput.value = s.gistId);
     })();
+
     statusHint.textContent = wakeLockSupported ? '⚡ 自动常亮' : '⚠️ 仅计时 (无常亮)';
     console.log('✅ 防烧屏计时器 (模块+考试+图表) 已启动');
+    // ⭐ 每次打开页面自动静默同步一次（仅当有 Token 时）
+    setTimeout(() => {
+        const s = getAppSettings();
+        if (s.gistToken) {
+            syncToGist({ silent: true });
+        }
+    }, 800);
 })();
