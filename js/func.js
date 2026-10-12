@@ -819,33 +819,94 @@
         setTimeout(() => location.reload(), 900);
     }
 
-    // 立即同步：首次创建 Gist，之后更新
+    // 智能双向同步
     async function syncToGist() {
         const token = gistTokenInput.value.trim();
         if (!token) { setGistStatus('❌ 请填写 GitHub Token', 'err'); return; }
 
-        // 保存 Token
         const s = getAppSettings();
         s.gistToken = token;
         saveAppSettings(s);
 
         const gistId = s.gistId || '';
-        const data = collectAllData();
-        const content = JSON.stringify(data, null, 2);
-        const body = {
-            description: '防烧屏计时器 · 数据备份',
-            files: { 'timer_data.json': { content } }
-        };
-        if (!gistId) body.public = false;
+        const localData = collectAllData();
+        const localCount = localData.moduleRecords.length + localData.examRecords.length;
 
         try {
-            setGistStatus('⏳ 同步中...', 'loading');
+            // ========== 1. 先拉取远程数据 ==========
+            let remoteData = null;
+            if (gistId) {
+                setGistStatus('⏳ 读取远程数据...', 'loading');
+                try {
+                    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Accept': 'application/vnd.github+json'
+                        }
+                    });
+                    if (res.ok) {
+                        const result = await res.json();
+                        const file = result.files && result.files['timer_data.json'];
+                        if (file) {
+                            let content = file.truncated && file.raw_url
+                                ? await (await fetch(file.raw_url)).text()
+                                : file.content;
+                            remoteData = JSON.parse(content);
+                        }
+                    }
+                } catch (e) { console.warn('拉取远程失败:', e); }
+            }
+
+            const remoteCount = remoteData
+                ? (remoteData.moduleRecords?.length || 0) + (remoteData.examRecords?.length || 0)
+                : 0;
+
+            // ========== 2. 智能决策 ==========
+            let finalData;
+
+            if (localCount === 0 && remoteCount > 0) {
+                // 本地空、远程有 → 直接下载
+                if (!confirm(`本地无数据，远程有 ${remoteCount} 条。\n\n是否从远程下载到本地？`)) {
+                    setGistStatus('已取消');
+                    return;
+                }
+                if (Array.isArray(remoteData.moduleRecords)) saveModuleRecords(remoteData.moduleRecords);
+                if (Array.isArray(remoteData.examRecords)) saveExamRecords(remoteData.examRecords);
+                const s3 = getAppSettings();
+                s3.lastSync = Date.now();
+                saveAppSettings(s3);
+                setGistStatus(`✅ 已下载 ${remoteCount} 条，即将刷新...`, 'ok');
+                setTimeout(() => location.reload(), 900);
+                return;
+
+            } else if (localCount > 0 && remoteCount > 0) {
+                // 两边都有 → 合并去重
+                if (!confirm(`本地 ${localCount} 条，远程 ${remoteCount} 条。\n\n是否合并去重后同步？（推荐）`)) {
+                    setGistStatus('已取消');
+                    return;
+                }
+                finalData = mergeData(localData, remoteData);
+                // 更新本地为合并后
+                saveModuleRecords(finalData.moduleRecords);
+                saveExamRecords(finalData.examRecords);
+            } else {
+                // 本地有、远程空 / 两边都空 → 直接上传
+                finalData = localData;
+            }
+
+            // ========== 3. 上传 ==========
+            setGistStatus('⏳ 上传中...', 'loading');
+            const body = {
+                description: '防烧屏计时器 · 数据备份',
+                files: { 'timer_data.json': { content: JSON.stringify(finalData, null, 2) } }
+            };
+            if (!gistId) body.public = false;
+
             const headers = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github+json'
             };
-
             const res = gistId
                 ? await fetch(`https://api.github.com/gists/${gistId}`, { method: 'PATCH', headers, body: JSON.stringify(body) })
                 : await fetch('https://api.github.com/gists', { method: 'POST', headers, body: JSON.stringify(body) });
@@ -854,21 +915,37 @@
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.message || `HTTP ${res.status}`);
             }
-
             const result = await res.json();
 
-            // 记录同步时间和 Gist ID
             const s2 = getAppSettings();
             s2.gistToken = token;
             s2.gistId = result.id;
             s2.lastSync = Date.now();
             saveAppSettings(s2);
 
-            setGistStatus(`✅ 上次同步：${new Date().toLocaleString('zh-CN', { hour12: false })}`, 'ok');
-            console.log('[Sync] 同步成功');
+            const total = finalData.moduleRecords.length + finalData.examRecords.length;
+            setGistStatus(`✅ 同步成功（共 ${total} 条）\n上次同步：${new Date().toLocaleString('zh-CN', { hour12: false })}`, 'ok');
         } catch (e) {
             setGistStatus(`❌ 同步失败：${e.message}`, 'err');
         }
+    }
+
+    // 合并去重：按 timestamp 唯一
+    function mergeData(local, remote) {
+        const merge = (a, b) => {
+            const map = new Map();
+            [...(a || []), ...(b || [])].forEach(r => {
+                if (r && r.timestamp) map.set(r.timestamp, r);
+            });
+            return [...map.values()].sort((x, y) => x.timestamp - y.timestamp);
+        };
+        return {
+            version: 1,
+            app: 'burn-in-timer',
+            exportedAt: new Date().toISOString(),
+            moduleRecords: merge(local.moduleRecords, remote.moduleRecords),
+            examRecords: merge(local.examRecords, remote.examRecords)
+        };
     }
 
     // 触发文件选择
