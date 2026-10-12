@@ -401,11 +401,6 @@ html {
 
 /* ---------- 触摸设备：控制栏常显（因为无 mousemove）---------- */
 @media (hover: none) and (pointer: coarse) {
-    .controls {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateX(-50%) translateY(0);
-    }
     /* 触摸设备禁用鼠标隐藏 */
     body.cursor-hidden,
     body.cursor-hidden * {
@@ -476,11 +471,7 @@ html {
         display: none;
     }
 
-    /* 4) 全屏时隐藏"全屏"按钮（已在全屏，无需再点） */
-    :fullscreen #fullscreenBtn,
-    :-webkit-full-screen #fullscreenBtn {
-        display: none;
-    }
+
 
     /* 5) 按钮只显示图标（隐藏中文）—— 极致紧凑 */
     :fullscreen .controls button,
@@ -540,4 +531,37 @@ html {
         font-size: min(20vw, 18vh);
         letter-spacing: -1px;
     }
+}
+/* ---------- 横屏：按钮一行紧凑 ---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+    .controls {
+        flex-wrap: nowrap;              /* 不换行 */
+        padding: 5px 8px;
+        gap: 4px;
+        max-width: 98vw;
+        overflow: visible;
+        border-radius: 24px;
+        bottom: calc(6px + env(safe-area-inset-bottom));
+    }
+    .controls button {
+        padding: 7px 9px;
+        font-size: 0;                   /* 隐藏中文 */
+        min-width: 36px;
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    .controls button::before {
+        font-size: 1.05rem;
+        line-height: 1;
+        display: inline-block;
+    }
+    #startBtn::before { content: '▶'; }
+    #resetBtn::before { content: '↺'; }
+    #fullscreenBtn::before { content: '⛶'; }
+    #moduleBtn::before { content: '📚'; }
+    #examBtn::before { content: '🎓'; }
+    #settingsBtn::before { content: '⚙️'; }
+    #startBtn.paused::before { content: '⏸'; }
+
+    .status-hint { display: none; }      /* 横屏空间有限，隐藏状态提示 */
 }

@@ -67,9 +67,8 @@
     function showControls() {
         controls.classList.add('visible');
         if (hideTimeout) clearTimeout(hideTimeout);
-        // 触摸设备延长到 8 秒；鼠标设备 3 秒
         const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-        const delay = isTouch ? 8000 : 3000;
+        const delay = isTouch ? 8000 : 3000;   // 触摸 8 秒，桌面 3 秒
         hideTimeout = setTimeout(() => controls.classList.remove('visible'), delay);
     }
 
