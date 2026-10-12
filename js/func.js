@@ -923,10 +923,7 @@
 
             } else if (localCount > 0 && remoteCount > 0) {
                 // 两边都有 → 合并去重
-                if (!confirm(`本地 ${localCount} 条，远程 ${remoteCount} 条。\n\n是否合并去重后同步？（推荐）`)) {
-                    setGistStatus('已取消');
-                    return;
-                }
+                console.log(`本地 ${localCount} 条，远程 ${remoteCount} 条。`)
                 finalData = mergeData(localData, remoteData);
                 // 更新本地为合并后
                 saveModuleRecords(finalData.moduleRecords);
