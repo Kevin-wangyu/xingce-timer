@@ -505,28 +505,28 @@ html {
 }
 
 /* ---------- 移动端统一字号（宽高双约束，全屏/非全屏通用）---------- */
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     #timerDisplay {
-        font-size: max(2.5rem, min(16vw, 12vh));
+        font-size: min(40vw, 30vh);
         letter-spacing: 0.5px;
         min-height: 0;
         padding: 0 8px;
         overflow: hidden;
     }
 }
-@media (max-width: 480px) {
+@media (max-width: 800px) {
     #timerDisplay {
-        font-size: min(15.5vw, 11.5vh);
+        font-size: min(40vw, 30vh);
     }
 }
-@media (max-width: 420px) {
+@media (max-width: 800px) {
     #timerDisplay {
-        font-size: min(15vw, 11vh);
+        font-size: min(40vw, 30vh);
     }
 }
-@media (max-height: 500px) and (orientation: landscape) {
+@media (max-height: 1000px) and (orientation: landscape) {
     #timerDisplay {
-        font-size: min(13vw, 14vh);
+        font-size: min(40vw, 30vh);
         min-height: 0;
     }
 }
