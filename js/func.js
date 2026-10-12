@@ -67,7 +67,10 @@
     function showControls() {
         controls.classList.add('visible');
         if (hideTimeout) clearTimeout(hideTimeout);
-        hideTimeout = setTimeout(() => controls.classList.remove('visible'), 3000);
+        // 触摸设备延长到 8 秒；鼠标设备 3 秒
+        const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        const delay = isTouch ? 8000 : 3000;
+        hideTimeout = setTimeout(() => controls.classList.remove('visible'), delay);
     }
 
     // ---------- 鼠标箭头自动隐藏 ----------
@@ -1061,12 +1064,6 @@
                 if (examModulesChart) examModulesChart.resize();
             }
         });
-    });
-
-    gistIdInput.addEventListener('input', () => {
-        const s = getAppSettings();
-        s.gistId = gistIdInput.value.trim();
-        saveAppSettings(s);
     });
 
     // 设置页
